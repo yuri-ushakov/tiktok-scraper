@@ -12,7 +12,7 @@ This is not an official API support and etc. This is just a scraper that is usin
 
 <a href="https://www.buymeacoffee.com/Usom2qC" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-blue.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
-<a href="https://discord.gg/7SZaUs4" target="_blank"><img src="https://i.imgur.com/dUwek7T.jpg" alt="Discord Server" width="435" height="190" ></a>
+<a href="https://discord.gg/ffskw9k" target="_blank"><img src="https://i.imgur.com/dUwek7T.jpg" alt="Discord Server" width="435" height="190" ></a>
 
 
 ---
@@ -134,6 +134,8 @@ Options:
                        1000 mls = 1 s                               [default: 0]
   --number, -n         Number of posts to scrape. If you will set 0 then all
                        posts will be scraped                        [default: 0]
+  --since              Scrape no posts published before this date (timestamp).
+                       If set to 0 the filter is deactived          [default: 0]
   --proxy, -p          Set single proxy                            [default: ""]
   --proxy-file         Use proxies from a file. Scraper will use random proxies
                        from the file per each request. 1 line 1 proxy.
@@ -185,7 +187,7 @@ Examples:
 - [Terminal Examples](https://github.com/drawrowfly/tiktok-scraper/tree/master/examples/CLI/Examples.md)
 - [Manage Download History](https://github.com/drawrowfly/tiktok-scraper/tree/master/examples/CLI/DownloadHistory.md)
 - [Scrape and Download in Batch](https://github.com/drawrowfly/tiktok-scraper/tree/master/examples/CLI/BatchDownload.md)
-	    
+
 ### Output File Example
 
 ![Demo](https://i.imgur.com/6gIbBzo.png)
@@ -244,7 +246,10 @@ docker run -v /User/blah/downloads:/usr/app/files tiktok-scraper user tiktok -d 
 const options = {
     // Number of posts to scrape: {int default: 20}
     number: 50,
-    
+
+    // Scrape posts published since this date: { int default: 0}
+    since: 0,
+
     // Set session: {string[] default: ['']}
     // Authenticated session cookie value is required to scrape user/trending/music/hashtag feed
     // You can put here any number of sessions, each request will select random session from the list
@@ -289,21 +294,25 @@ const options = {
         referer: 'https://www.tiktok.com/',
         cookie: `tt_webid_v2=68dssds`,
     },
-    
+
     // Download video without the watermark: {boolean default: false}
     // Set to true to download without the watermark
     // This option will affect the execution speed
     noWaterMark: false,
-    
+
     // Create link to HD video: {boolean default: false}
     // This option will only work if {noWaterMark} is set to {true}
     hdVideo: false,
 
     // verifyFp is used to verify the request and avoid captcha
-    // When you are using proxy then there are high chances that the request will be 
+    // When you are using proxy then there are high chances that the request will be
     // blocked with captcha
     // You can set your own verifyFp value or default(hardcoded) will be used
-    verifyFp: ''
+    verifyFp: '',
+
+    // Switch main host to Tiktok test enpoint.
+    // When your requests are blocked by captcha you can try to use Tiktok test endpoints.
+    useTestEndpoints: false
 };
 ```
 
@@ -317,9 +326,9 @@ const TikTokScraper = require('tiktok-scraper');
 // User feed by username
 (async () => {
     try {
-        const posts = await TikTokScraper.user('USERNAME', { 
-            number: 100, 
-            sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475;'] 
+        const posts = await TikTokScraper.user('USERNAME', {
+            number: 100,
+            sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475;']
         });
         console.log(posts);
     } catch (error) {
@@ -331,10 +340,10 @@ const TikTokScraper = require('tiktok-scraper');
 // Some TikTok user id's are larger then MAX_SAFE_INTEGER, you need to pass user id as a string
 (async () => {
     try {
-        const posts = await TikTokScraper.user(`USER_ID`, { 
-            number: 100, 
+        const posts = await TikTokScraper.user(`USER_ID`, {
+            number: 100,
             by_user_id: true,
-            sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475;'] 
+            sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475;']
         });
         console.log(posts);
     } catch (error) {
@@ -345,9 +354,9 @@ const TikTokScraper = require('tiktok-scraper');
 // Trending feed
 (async () => {
     try {
-        const posts = await TikTokScraper.trend('', { 
+        const posts = await TikTokScraper.trend('', {
             number: 100,
-            sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475;'] 
+            sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475;']
         });
         console.log(posts);
     } catch (error) {
@@ -358,9 +367,9 @@ const TikTokScraper = require('tiktok-scraper');
 // Hashtag feed
 (async () => {
     try {
-        const posts = await TikTokScraper.hashtag('HASHTAG', { 
+        const posts = await TikTokScraper.hashtag('HASHTAG', {
             number: 100,
-            sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475;'] 
+            sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475;']
         });
         console.log(posts);
     } catch (error) {
@@ -412,7 +421,7 @@ const TikTokScraper = require('tiktok-scraper');
 ```javascript
 const TikTokScraper = require('tiktok-scraper');
 
-const users = TikTokScraper.userEvent("tiktok" { number: 30 });
+const users = TikTokScraper.userEvent("tiktok", { number: 30 });
 users.on('data', json => {
     //data in JSON format
 });
@@ -460,7 +469,7 @@ Set the session:
         sid_tt=521kkadkasdaskdj4j213j12j312;
         sid_tt=521kkadkasdaskdj4j213j12j312;
         ```
-         
+
 - In the **MODULE** you can set session by setting the option value sessionList . For example **sessionList:["sid_tt=521kkadkasdaskdj4j213j12j312;", "sid_tt=12312312312312;"]**
 
 ### Download Video

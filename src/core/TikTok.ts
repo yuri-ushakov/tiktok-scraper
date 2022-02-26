@@ -1,8 +1,9 @@
-/* eslint-disable no-param-reassign */
 /* eslint-disable no-console */
-/* eslint-disable no-throw-literal */
 /* eslint-disable no-await-in-loop */
+/* eslint-disable no-underscore-dangle */
+
 import rp, { OptionsWithUri } from 'request-promise';
+import { CookieJar } from 'request';
 import { tmpdir } from 'os';
 import { writeFile, readFile, mkdir } from 'fs';
 import { Parser } from 'json2csv';
@@ -11,9 +12,9 @@ import { fromCallback } from 'bluebird';
 import { EventEmitter } from 'events';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { forEachLimit } from 'async';
-
+import { URLSearchParams } from 'url';
 import CONST from '../constant';
-import { sign } from '../helpers';
+import { sign, makeid } from '../helpers';
 
 import {
     PostCollector,
@@ -39,6 +40,8 @@ import { Downloader } from '../core';
 export class TikTokScraper extends EventEmitter {
     private mainHost: string;
 
+    private userIdStore: string;
+
     private download: boolean;
 
     private filepath: string;
@@ -51,7 +54,11 @@ export class TikTokScraper extends EventEmitter {
 
     private proxy: string[] | string;
 
+    private strictSSL: boolean;
+
     private number: number;
+
+    private since: number;
 
     private asyncDownload: number;
 
@@ -75,8 +82,6 @@ export class TikTokScraper extends EventEmitter {
 
     private idStore: string;
 
-    private userIdStore: string;
-
     public Downloader: Downloader;
 
     private storeValue: string = '';
@@ -90,6 +95,10 @@ export class TikTokScraper extends EventEmitter {
     private timeout: number;
 
     private bulk: boolean;
+
+    private validHeaders: boolean;
+
+    private csrf: string;
 
     private zip: boolean;
 
@@ -108,7 +117,7 @@ export class TikTokScraper extends EventEmitter {
         bad: number;
     };
 
-    private headers: Headers;
+    public headers: Headers;
 
     private sessionList: string[];
 
@@ -116,22 +125,27 @@ export class TikTokScraper extends EventEmitter {
 
     private store: string[];
 
+    public cookieJar: CookieJar;
+
     constructor({
         download,
         filepath,
         filetype,
         proxy,
+        strictSSL = true,
         asyncDownload,
         cli = false,
         event = false,
         progress = false,
         input,
         number,
+        since,
         type,
         by_user_id = false,
         store_history = false,
         historyPath = '',
         noWaterMark = false,
+        useTestEndpoints = false,
         fileName = '',
         timeout = 0,
         bulk = false,
@@ -145,8 +159,9 @@ export class TikTokScraper extends EventEmitter {
         sessionList = [],
     }: TikTokConstructor) {
         super();
+        this.userIdStore = '';
         this.verifyFp = verifyFp;
-        this.mainHost = 'https://m.tiktok.com/';
+        this.mainHost = useTestEndpoints ? 'https://t.tiktok.com/' : 'https://m.tiktok.com/';
         this.headers = headers;
         this.download = download;
         this.filepath = process.env.SCRAPING_FROM_DOCKER ? '/usr/app/files' : filepath || '';
@@ -156,8 +171,13 @@ export class TikTokScraper extends EventEmitter {
         this.input = input;
         this.test = test;
         this.proxy = proxy;
+        this.strictSSL = strictSSL;
         this.number = number;
+        this.since = since;
+        this.csrf = '';
         this.zip = zip;
+        // Cookie jar. Where all valid cookies will be stored
+        this.cookieJar = rp.jar();
         this.hdVideo = hdVideo;
         this.sessionList = sessionList;
         this.asyncDownload = asyncDownload || 5;
@@ -179,14 +199,15 @@ export class TikTokScraper extends EventEmitter {
         this.storeHistory = cli && download && store_history;
         this.historyPath = process.env.SCRAPING_FROM_DOCKER ? '/usr/app/files' : historyPath || tmpdir();
         this.idStore = '';
-        this.userIdStore = '';
         this.noWaterMark = noWaterMark;
         this.maxCursor = 0;
         this.noDuplicates = [];
         this.timeout = timeout;
         this.bulk = bulk;
+        this.validHeaders = false;
         this.Downloader = new Downloader({
             progress,
+            cookieJar: this.cookieJar,
             proxy,
             noWaterMark,
             headers,
@@ -302,6 +323,7 @@ export class TikTokScraper extends EventEmitter {
         return new Promise(async (resolve, reject) => {
             const proxy = this.getProxy;
             const options = ({
+                jar: this.cookieJar,
                 uri,
                 method,
                 ...(qs ? { qs } : {}),
@@ -310,6 +332,7 @@ export class TikTokScraper extends EventEmitter {
                 headers: {
                     ...this.headers,
                     ...headers,
+                    ...(this.csrf ? { 'x-secsdk-csrf-token': this.csrf } : {}),
                 },
                 ...(json ? { json: true } : {}),
                 ...(gzip ? { gzip: true } : {}),
@@ -318,11 +341,29 @@ export class TikTokScraper extends EventEmitter {
                 simple,
                 ...(proxy.proxy && proxy.socks ? { agent: proxy.proxy } : {}),
                 ...(proxy.proxy && !proxy.socks ? { proxy: `http://${proxy.proxy}/` } : {}),
+                ...(this.strictSSL === false ? { rejectUnauthorized: false } : {}),
                 timeout: 10000,
             } as unknown) as OptionsWithUri;
 
+            const session = this.sessionList[Math.floor(Math.random() * this.sessionList.length)];
+            if (session) {
+                this.cookieJar.setCookie(session, 'https://tiktok.com');
+            }
+            /**
+             * Set tt_webid_v2 cookie to access video url
+             */
+            const cookies = this.cookieJar.getCookieString('https://tiktok.com');
+            if (cookies.indexOf('tt_webid_v2') === -1) {
+                this.cookieJar.setCookie(`tt_webid_v2=69${makeid(17)}; Domain=tiktok.com; Path=/; Secure; hostOnly=false`, 'https://tiktok.com');
+            }
+
             try {
                 const response = await rp(options);
+                // Extract valid csrf token
+                if (options.method === 'HEAD') {
+                    const csrf = response.headers['x-ware-csrf-token'];
+                    this.csrf = csrf.split(',')[1] as string;
+                }
                 setTimeout(() => {
                     resolve(bodyOnly ? response.body : response);
                 }, this.timeout);
@@ -398,7 +439,7 @@ export class TikTokScraper extends EventEmitter {
         }
 
         return {
-            headers: this.headers,
+            headers: { ...this.headers, cookie: this.cookieJar.getCookieString('https://tiktok.com') },
             collector: this.collector,
             ...(this.download ? { zip } : {}),
             ...(this.filetype === 'all' ? { json, csv } : {}),
@@ -412,7 +453,7 @@ export class TikTokScraper extends EventEmitter {
      * Extract uniq video id and create the url to the video without the watermark
      */
     private withoutWatermark() {
-        return new Promise(resolve => {
+        return new Promise((resolve, reject) => {
             forEachLimit(
                 this.collector,
                 5,
@@ -424,7 +465,11 @@ export class TikTokScraper extends EventEmitter {
                         throw new Error(`Can't extract unique video id`);
                     }
                 },
-                () => {
+                err => {
+                    if (err) {
+                        return reject(err);
+                    }
+
                     resolve(null);
                 },
             );
@@ -499,7 +544,7 @@ export class TikTokScraper extends EventEmitter {
      * Main loop that collects all required metadata from the tiktok web api
      */
     private mainLoop(): Promise<any> {
-        return new Promise(resolve => {
+        return new Promise((resolve, reject) => {
             const taskArray = Array.from({ length: 1000 }, (v, k) => k + 1);
             forEachLimit(
                 taskArray,
@@ -509,32 +554,36 @@ export class TikTokScraper extends EventEmitter {
                         case 'user':
                             this.getUserId()
                                 .then(query => this.submitScrapingRequest({ ...query, cursor: this.maxCursor }, true))
-                                .then(() => cb(null))
+                                .then(kill => cb(kill || null))
                                 .catch(error => cb(error));
                             break;
                         case 'hashtag':
                             this.getHashTagId()
                                 .then(query => this.submitScrapingRequest({ ...query, cursor: item === 1 ? 0 : (item - 1) * query.count! }, true))
-                                .then(() => cb(null))
+                                .then(kill => cb(kill || null))
                                 .catch(error => cb(error));
                             break;
                         case 'trend':
                             this.getTrendingFeedQuery()
                                 .then(query => this.submitScrapingRequest({ ...query }, true))
-                                .then(() => cb(null))
+                                .then(kill => cb(kill || null))
                                 .catch(error => cb(error));
                             break;
                         case 'music':
                             this.getMusicFeedQuery()
                                 .then(query => this.submitScrapingRequest({ ...query, cursor: item === 1 ? 0 : (item - 1) * query.count! }, true))
-                                .then(() => cb(null))
+                                .then(kill => cb(kill || null))
                                 .catch(error => cb(error));
                             break;
                         default:
                             break;
                     }
                 },
-                () => {
+                err => {
+                    if (err && err !== true) {
+                        return reject(err);
+                    }
+
                     resolve(null);
                 },
             );
@@ -545,8 +594,17 @@ export class TikTokScraper extends EventEmitter {
      * Submit request to the TikTok web API
      * Collect received metadata
      */
-    private async submitScrapingRequest(query: RequestQuery, updatedApiResponse = false): Promise<any> {
+    private async submitScrapingRequest(query: RequestQuery, updatedApiResponse = false): Promise<boolean> {
         try {
+            if (!this.validHeaders) {
+                /**
+                 * As of August 13, 2021 the trend api endpoint requires ttwid cookie value that can be extracted by sending GET request to the tiktok trending page
+                 */
+                if (this.scrapeType === 'trend') {
+                    await this.getValidHeaders(`https://www.tiktok.com/foryou`, false, 'GET');
+                }
+                this.validHeaders = true;
+            }
             const result = await this.scrapeData<ItemListData>(query);
             if (result.statusCode !== 0) {
                 throw new Error(`Can't scrape more posts`);
@@ -555,18 +613,21 @@ export class TikTokScraper extends EventEmitter {
             if ((updatedApiResponse && !result.itemList) || (!updatedApiResponse && !result.items)) {
                 throw new Error('No more posts');
             }
-            await this.collectPosts(updatedApiResponse ? result.itemList : result.items);
+            const { done } = await this.collectPosts(updatedApiResponse ? result.itemList : result.items);
 
             if (!hasMore) {
-                throw new Error('No more posts');
+                console.error(`Only ${this.collector.length} results could be found.`);
+                return true;
             }
 
-            if (this.collector.length >= this.number && this.number !== 0) {
-                throw new Error('Done');
+            if (done) {
+                return true;
             }
+
             this.maxCursor = parseInt(maxCursor === undefined ? cursor : maxCursor, 10);
+            return false;
         } catch (error) {
-            throw error.message;
+            throw error.message ? new Error(error.message) : error;
         }
     }
 
@@ -718,10 +779,21 @@ export class TikTokScraper extends EventEmitter {
      * @param posts
      */
     private collectPosts(posts: FeedItems[]) {
+        const result = {
+            done: false,
+        };
         for (let i = 0; i < posts.length; i += 1) {
-            if (this.number) {
-                if (this.collector.length >= this.number) {
+            if (result.done) {
+                break;
+            }
+
+            if (this.since && posts[i].createTime < this.since) {
+                result.done = CONST.chronologicalTypes.indexOf(this.scrapeType) !== -1;
+
+                if (result.done) {
                     break;
+                } else {
+                    continue;
                 }
             }
 
@@ -790,6 +862,12 @@ export class TikTokScraper extends EventEmitter {
                               cover: coverLarger,
                           }))
                         : [],
+                    effectStickers: posts[i].effectStickers
+                        ? posts[i].effectStickers.map(({ ID, name }) => ({
+                              id: ID,
+                              name,
+                          }))
+                        : [],
                 };
 
                 if (this.event) {
@@ -799,20 +877,57 @@ export class TikTokScraper extends EventEmitter {
                     this.collector.push(item);
                 }
             }
+
+            if (this.number) {
+                if (this.collector.length >= this.number) {
+                    result.done = true;
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * In order to execute some request, we need to extract valid cookie headers
+     * This request is being executed only once per run
+     */
+    private async getValidHeaders(url = '', signUrl = true, method = 'HEAD') {
+        const options = {
+            uri: url,
+            method,
+            ...(signUrl
+                ? {
+                      qs: {
+                          _signature: sign(url, this.headers['user-agent']),
+                      },
+                  }
+                : {}),
+            headers: {
+                'x-secsdk-csrf-request': 1,
+                'x-secsdk-csrf-version': '1.2.5',
+            },
+        };
+
+        try {
+            await this.request<string>(options);
+        } catch (error) {
+            throw new Error(error.message);
         }
     }
 
     private async scrapeData<T>(qs: RequestQuery): Promise<T> {
         this.storeValue = this.scrapeType === 'trend' ? 'trend' : qs.id || qs.challengeID! || qs.musicID!;
 
+        const unsignedURL = `${this.getApiEndpoint}?${new URLSearchParams(qs as any).toString()}`;
+        const _signature = sign(unsignedURL, this.headers['user-agent']);
+
         const options = {
             uri: this.getApiEndpoint,
             method: 'GET',
             qs: {
                 ...qs,
-            },
-            headers: {
-                cookie: this.getCookies(true),
+                _signature,
             },
             json: true,
         };
@@ -821,7 +936,7 @@ export class TikTokScraper extends EventEmitter {
             const response = await this.request<T>(options);
             return response;
         } catch (error) {
-            throw error.message;
+            throw new Error(error.message);
         }
     }
 
@@ -832,10 +947,12 @@ export class TikTokScraper extends EventEmitter {
     private async getTrendingFeedQuery(): Promise<RequestQuery> {
         return {
             aid: 1988,
+            app_name: 'tiktok_web',
+            device_platform: 'web_pc',
             lang: '',
             count: 30,
-            verifyFp: this.verifyFp,
-            user_agent: this.headers['user-agent'],
+            from_page: 'fyp',
+            itemID: 1,
         };
     }
 
@@ -854,7 +971,6 @@ export class TikTokScraper extends EventEmitter {
             count: 30,
             cursor: 0,
             verifyFp: '',
-            user_agent: this.headers['user-agent'],
         };
     }
 
@@ -869,7 +985,6 @@ export class TikTokScraper extends EventEmitter {
                 cursor: 0,
                 aid: 1988,
                 verifyFp: this.verifyFp,
-                user_agent: this.headers['user-agent'],
             };
         }
         const id = encodeURIComponent(this.input);
@@ -893,17 +1008,10 @@ export class TikTokScraper extends EventEmitter {
                 cursor: 0,
                 aid: 1988,
                 verifyFp: this.verifyFp,
-                user_agent: this.headers['user-agent'],
             };
         } catch (error) {
-            throw error.message;
+            throw new Error(error.message);
         }
-    }
-
-    private getCookies(auth = false) {
-        const session = auth ? this.sessionList[Math.floor(Math.random() * this.sessionList.length)] : '';
-
-        return `${this.headers.cookie}; ${session}`;
     }
 
     /**
@@ -916,10 +1024,14 @@ export class TikTokScraper extends EventEmitter {
                 secUid: this.idStore ? this.idStore : this.input,
                 lang: '',
                 aid: 1988,
-                sourceType: CONST.sourceType.user,
                 count: 30,
                 cursor: 0,
-                verifyFp: this.verifyFp,
+                app_name: 'tiktok_web',
+                device_platform: 'web_pc',
+                cookie_enabled: true,
+                history_len: 2,
+                focus_state: true,
+                is_fullscreen: false,
             };
         }
 
@@ -931,14 +1043,18 @@ export class TikTokScraper extends EventEmitter {
                 id: this.userIdStore,
                 aid: 1988,
                 secUid: this.idStore,
-                sourceType: CONST.sourceType.user,
                 count: 30,
                 lang: '',
                 cursor: 0,
-                verifyFp: this.verifyFp,
+                app_name: 'tiktok_web',
+                device_platform: 'web_pc',
+                cookie_enabled: true,
+                history_len: 2,
+                focus_state: true,
+                is_fullscreen: false,
             };
         } catch (error) {
-            throw error.message;
+            throw new Error(error.message);
         }
     }
 
@@ -948,24 +1064,26 @@ export class TikTokScraper extends EventEmitter {
      */
     public async getUserProfileInfo(): Promise<UserMetadata> {
         if (!this.input) {
-            throw `Username is missing`;
+            throw new Error(`Username is missing`);
         }
         const options = {
             method: 'GET',
-            uri: `https://www.tiktok.com/@${this.input}`,
+            uri: `https://www.tiktok.com/@${encodeURIComponent(this.input)}`,
             json: true,
         };
         try {
             const response = await this.request<string>(options);
             const breakResponse = response
-                .split(`<script id="__NEXT_DATA__" type="application/json" crossorigin="anonymous">`)[1]
+                .split(/<script id="__NEXT_DATA__" type="application\/json" nonce="[\w-]+" crossorigin="anonymous">/)[1]
                 .split(`</script>`)[0];
             if (breakResponse) {
                 const userMetadata: WebHtmlUserMetadata = JSON.parse(breakResponse);
                 return userMetadata.props.pageProps.userInfo;
             }
-        } catch {
-            // continue regardless of error
+        } catch (err) {
+            if (err.statusCode === 404) {
+                throw new Error('User does not exist');
+            }
         }
         throw new Error(`Can't extract user metadata from the html page. Make sure that user does exist and try to use proxy`);
     }
@@ -976,24 +1094,12 @@ export class TikTokScraper extends EventEmitter {
      */
     public async getHashtagInfo(): Promise<HashtagMetadata> {
         if (!this.input) {
-            throw `Hashtag is missing`;
+            throw new Error(`Hashtag is missing`);
         }
         const query = {
             uri: `${this.mainHost}node/share/tag/${this.input}?uniqueId=${this.input}`,
             qs: {
-                user_agent: this.headers['user-agent'],
-                screen_width: 1792,
-                screen_height: 1120,
-                browser_language: 'en-US',
-                browser_platform: 'MacIntel',
                 appId: 1233,
-                isIOS: false,
-                isMobile: false,
-                isAndroid: false,
-                appType: 'm',
-                browser_online: true,
-                browser_version: '5.0 (Macintosh)',
-                browser_name: 'Mozilla',
             },
             method: 'GET',
             json: true,
@@ -1009,7 +1115,7 @@ export class TikTokScraper extends EventEmitter {
             }
             return response.challengeInfo;
         } catch (error) {
-            throw error.message;
+            throw new Error(error.message);
         }
     }
 
@@ -1019,33 +1125,42 @@ export class TikTokScraper extends EventEmitter {
      */
     public async getMusicInfo(): Promise<MusicMetadata> {
         if (!this.input) {
-            throw `Music is missing`;
+            throw new Error(`Music is missing`);
         }
 
-        const musicId = /music\/([\w-]+)/.exec(this.input);
-
-        this.input = musicId ? musicId[1] : `-${this.input}`;
+        const musicTitle = /music\/([\w-]+)-\d+/.exec(this.input);
+        const musicId = /music\/[\w-]+-(\d+)/.exec(this.input);
 
         const query = {
-            uri: `${this.mainHost}node/share/music/${this.input}`,
+            uri: `https://www.tiktok.com/node/share/music/${musicTitle ? musicTitle[1] : ''}-${musicId ? musicId[1] : ''}`,
             qs: {
-                user_agent: this.headers['user-agent'],
                 screen_width: 1792,
                 screen_height: 1120,
-                browser_language: 'en-US',
-                browser_platform: 'MacIntel',
-                appId: 1233,
-                isIOS: false,
-                isMobile: false,
-                isAndroid: false,
-                appType: 'm',
+                lang: 'en',
+                priority_region: '',
+                referer: '',
+                root_referer: '',
+                app_language: 'en',
+                is_page_visible: true,
+                history_len: 6,
+                focus_state: true,
+                is_fullscreen: false,
                 aid: 1988,
                 app_name: 'tiktok_web',
+                timezone_name: '',
                 device_platform: 'web',
+                musicId: musicId ? musicId[1] : '',
+                musicName: musicTitle ? musicTitle[1] : '',
             },
             method: 'GET',
             json: true,
         };
+
+        const unsignedURL = `${query.uri}?${new URLSearchParams(query.qs as any).toString()}`;
+        const _signature = sign(unsignedURL, this.headers['user-agent']);
+
+        // @ts-ignore
+        query.qs._signature = _signature;
 
         try {
             const response = await this.request<TikTokMetadata>(query);
@@ -1054,7 +1169,7 @@ export class TikTokScraper extends EventEmitter {
             }
             return response.musicInfo;
         } catch (error) {
-            throw error.message;
+            throw new Error(error.message);
         }
     }
 
@@ -1064,10 +1179,9 @@ export class TikTokScraper extends EventEmitter {
      */
     public async signUrl() {
         if (!this.input) {
-            throw `Url is missing`;
+            throw new Error(`Url is missing`);
         }
-
-        return sign(this.headers['user-agent'], this.input);
+        return sign(this.input, this.headers['user-agent']);
     }
 
     /**
@@ -1077,57 +1191,42 @@ export class TikTokScraper extends EventEmitter {
      */
     private async getVideoMetadataFromHtml(): Promise<FeedItems> {
         const options = {
-            uri: `${this.input}?verifyFp=${this.verifyFp}`,
+            uri: this.input,
             method: 'GET',
             json: true,
         };
         try {
-            let short = false;
-            let regex: RegExpExecArray | null;
             const response = await this.request<string>(options);
             if (!response) {
                 throw new Error(`Can't extract video meta data`);
             }
 
-            if (response.indexOf('<script>window.__INIT_PROPS__ = ') > -1) {
-                short = true;
-            }
+            if (response.includes("__NEXT_DATA__")){
+                const rawVideoMetadata = response
+                    .split(/<script id="__NEXT_DATA__" type="application\/json" nonce="[\w-]+" crossorigin="anonymous">/)[1]
+                    .split(`</script>`)[0];
 
-            if (short) {
-                regex = /<script>window.__INIT_PROPS__ = ([^]*)\}<\/script>/.exec(response);
-            } else {
-                regex = /<script id="__NEXT_DATA__" type="application\/json" crossorigin="anonymous">(.+)<\/script><script cros/.exec(response);
-            }
-
-            if (regex) {
-                const videoProps = JSON.parse(short ? `${regex[1]}}` : regex[1]);
-                let shortKey = '/v/:id';
-
-                if (short) {
-                    if (videoProps['/v/:id']) {
-                        if (videoProps['/v/:id'].statusCode) {
-                            throw new Error();
-                        }
-                    } else if (videoProps['/i18n/share/video/:id']) {
-                        shortKey = '/i18n/share/video/:id';
-                        if (videoProps['/i18n/share/video/:id'].statusCode) {
-                            throw new Error();
-                        }
-                    } else {
-                        throw new Error();
-                    }
-                } else if (videoProps.props.pageProps.statusCode) {
-                    throw new Error();
-                }
-
-                const videoData = short ? videoProps[shortKey].videoData : videoProps.props.pageProps.itemInfo.itemStruct;
+                const videoProps = JSON.parse(rawVideoMetadata);
+                const videoData = videoProps.props.pageProps.itemInfo.itemStruct;
                 return videoData as FeedItems;
             }
-        } catch (error) {
-            throw `Can't extract video metadata: ${this.input}`;
-        }
 
-        throw new Error();
+            if (response.includes("SIGI_STATE")) {
+                // Sometimes you may receive a state in different format, so we should parse it too
+                // New format - https://pastebin.com/WLUpL0ei
+                const rawVideoMetadata = response
+                    .split("window['SIGI_STATE']=")[1]
+                    .split(";window['SIGI_RETRY']=")[0];
+
+                const videoProps = JSON.parse(rawVideoMetadata);
+                const videoData = Object.values(videoProps.ItemModule)[0];
+                return videoData as FeedItems;
+            }
+
+            throw new Error('No available parser for html page')
+        } catch (error) {
+            throw new Error(`Can't extract video metadata: ${this.input}`);
+        }
     }
 
     /**
@@ -1150,8 +1249,10 @@ export class TikTokScraper extends EventEmitter {
                 if (response.statusCode === 0) {
                     return response.itemInfo.itemStruct;
                 }
-            } catch {
-                // continue regardless of error
+            } catch (err) {
+                if (err.statusCode === 404) {
+                    throw new Error('Video does not exist');
+                }
             }
         }
         throw new Error(`Can't extract video metadata: ${this.input}`);
@@ -1164,7 +1265,7 @@ export class TikTokScraper extends EventEmitter {
 
     public async getVideoMeta(html = true): Promise<PostCollector> {
         if (!this.input) {
-            throw `Url is missing`;
+            throw new Error(`Url is missing`);
         }
 
         let videoData = {} as FeedItems;
@@ -1233,6 +1334,12 @@ export class TikTokScraper extends EventEmitter {
                       name: title,
                       title: desc,
                       cover: profileLarger,
+                  }))
+                : [],
+            effectStickers: videoData.effectStickers
+                ? videoData.effectStickers.map(({ ID, name }) => ({
+                      id: ID,
+                      name,
                   }))
                 : [],
         } as PostCollector;

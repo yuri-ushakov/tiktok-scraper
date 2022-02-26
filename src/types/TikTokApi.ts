@@ -1,3 +1,5 @@
+/* eslint-disable no-underscore-dangle */
+
 import { DuetInfo } from '.';
 
 export interface ItemInfos {
@@ -90,22 +92,42 @@ export interface RequestQuery {
     type?: number;
     sourceType?: number;
     count?: number;
+    priority_region?: string;
+    lang?: string;
+    referer?: string;
+    root_referer?: string;
     minCursor?: number;
     maxCursor?: number;
-    lang?: string;
+    language?: string;
     verifyFp?: string;
+    device_id?: string;
+    region?: string;
+    'X-Bogus'?: string;
+    msToken?: string;
     challengeID?: string;
+    insertedItemID?: string;
+    noUser?: number;
+    fromPage?: string;
+    from_page?: string;
     cursor?: number;
     aid?: number;
+    itemID?: number;
     appId?: number;
+    app_language?: string;
+    is_page_visible?: boolean;
     user_agent?: string;
     screen_width?: number;
     screen_height?: number;
     browser_language?: string;
     browser_platform?: string;
     isIOS?: boolean;
+    os?: string;
     isMobile?: boolean;
     isAndroid?: boolean;
+    cookie_enabled?: boolean;
+    history_len?: number;
+    focus_state?: boolean;
+    is_fullscreen?: boolean;
     appType?: string;
     browser_online?: boolean;
     browser_version?: string;
@@ -116,6 +138,7 @@ export interface RequestQuery {
     OS?: string;
     app_name?: string;
     device_platform?: string;
+    _signature?: string;
 }
 
 export interface VideoProps {
@@ -232,6 +255,10 @@ export interface FeedItems {
     duetEnabled: boolean;
     stitchEnabled: boolean;
     duetInfo: DuetInfo;
+    effectStickers: {
+        name: string;
+        ID: string;
+    }[];
 }
 
 /**

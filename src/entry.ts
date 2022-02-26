@@ -20,11 +20,12 @@ import {
     MusicMetadata,
 } from './types';
 import CONST from './constant';
-import { makeid } from './helpers';
+import { makeVerifyFp } from './helpers';
 
 const getInitOptions = () => {
     return {
         number: 30,
+        since: 0,
         download: false,
         zip: false,
         asyncDownload: 5,
@@ -40,11 +41,10 @@ const getInitOptions = () => {
         timeout: 0,
         tac: '',
         signature: '',
-        verifyFp: CONST.verifyFp(),
+        verifyFp: makeVerifyFp(),
         headers: {
             'user-agent': CONST.userAgent(),
             referer: 'https://www.tiktok.com/',
-            cookie: `tt_webid_v2=68${makeid(16)}`,
         },
     };
 };
@@ -62,7 +62,7 @@ const proxyFromFile = async (file: string) => {
         }
         return proxyList;
     } catch (error) {
-        throw error.message;
+        throw new Error(error.message);
     }
 };
 
@@ -79,7 +79,7 @@ const sessionFromFile = async (file: string) => {
         }
         return proxyList;
     } catch (error) {
-        throw error.message;
+        throw new Error(error.message);
     }
 };
 
@@ -209,7 +209,7 @@ export const getVideoMeta = async (input: string, options = {} as Options): Prom
     const fullUrl = /^https:\/\/www\.tiktok\.com\/@[\w.-]+\/video\/\d+/.test(input);
     const result = await scraper.getVideoMeta(!fullUrl);
     return {
-        headers: contructor.headers,
+        headers: { ...scraper.headers, cookie: scraper.cookieJar!.getCookieString('https://tiktok.com') },
         collector: [result],
     };
 };
@@ -390,7 +390,7 @@ export const fromfile = async (input: string, options = {} as Options) => {
                     input: item.split('#')[1],
                 };
             }
-            if (/^https:\/\/(www|v[a-z]{1})+\.tiktok\.com\/(\w.+|@(\w.+)\/video\/(\d+))$/.test(item)) {
+            if (/^https:\/\/(www|v[a-z]{1}|[a-z])+\.(tiktok|tiktokv)\.com\/@?\w.+\/video\/(\d+)(.+)?$/.test(item)) {
                 return {
                     type: 'video',
                     input: item,

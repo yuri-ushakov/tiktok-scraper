@@ -66,7 +66,7 @@ const startScraper = async argv => {
                 console.log(scraper);
             }
         } catch (error) {
-            console.error(error.message ? error.message : error);
+            console.error(error.message || error);
         }
     } catch (error) {
         console.log(error);
@@ -130,6 +130,10 @@ yargs
             default: 0,
             describe: 'Number of posts to scrape. If you will set 0 then all posts will be scraped',
         },
+        since: {
+            default: 0,
+            describe: 'Scrape posts that are published after specified date (timestamp). The default value is 0 - scrape all posts',
+        },
         proxy: {
             alias: 'p',
             default: '',
@@ -144,6 +148,11 @@ yargs
             boolean: true,
             default: false,
             describe: 'Download video posts to the folder with the name input [id]',
+        },
+        useTestEndpoints: {
+            boolean: true,
+            default: false,
+            describe: 'Use Tiktok test endpoints. When your requests are blocked by captcha you can try to use Tiktok test endpoints.',
         },
         asyncDownload: {
             alias: 'a',
