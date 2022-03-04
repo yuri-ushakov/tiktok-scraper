@@ -316,38 +316,44 @@ export interface MusicMetadata {
     };
 }
 
+export interface UserStats{
+    followingCount: number;
+    followerCount: number;
+    heartCount: number;
+    videoCount: number;
+    diggCount: number;
+    heart: number;
+}
+
+export interface UserProfileInfo{
+    id: string;
+    uniqueId: string;
+    nickname: string;
+    avatarThumb: string;
+    avatarMedium: string;
+    avatarLarger: string;
+    signature: string;
+    verified: boolean;
+    secUid: string;
+    secret: boolean;
+    ftc: boolean;
+    relation: number;
+    openFavorite: boolean;
+    commentSetting: number;
+    duetSetting: number;
+    stitchSetting: number;
+    privateAccount: boolean;
+}
+
+export interface UserShareMetadata{
+    title: string;
+    desc: string;
+}
+
 export interface UserMetadata {
-    user: {
-        id: string;
-        uniqueId: string;
-        nickname: string;
-        avatarThumb: string;
-        avatarMedium: string;
-        avatarLarger: string;
-        signature: string;
-        verified: boolean;
-        secUid: string;
-        secret: boolean;
-        ftc: boolean;
-        relation: number;
-        openFavorite: boolean;
-        commentSetting: number;
-        duetSetting: number;
-        stitchSetting: number;
-        privateAccount: boolean;
-    };
-    stats: {
-        followingCount: number;
-        followerCount: number;
-        heartCount: number;
-        videoCount: number;
-        diggCount: number;
-        heart: number;
-    };
-    shareMeta: {
-        title: string;
-        desc: string;
-    };
+    user: UserProfileInfo;
+    stats: UserStats;
+    shareMeta: UserShareMetadata;
 }
 
 export interface HashtagMetadata {
@@ -372,4 +378,18 @@ export interface WebHtmlUserMetadata {
             userInfo: UserMetadata;
         };
     };
+}
+
+export interface WebHtmlStateObject {
+    SharingMeta: {
+        value: {
+            [key: string]: string
+        }
+    }
+    UserModule: {
+        users: {
+            [key: string]: UserProfileInfo
+        },
+        stats: UserStats
+    },
 }
