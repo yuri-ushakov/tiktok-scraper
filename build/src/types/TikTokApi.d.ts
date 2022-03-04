@@ -367,6 +367,8 @@ export interface WebHtmlStateObject {
         users: {
             [key: string]: UserProfileInfo;
         };
-        stats: UserStats;
+        stats: {
+            [key: string]: UserStats;
+        };
     };
 }

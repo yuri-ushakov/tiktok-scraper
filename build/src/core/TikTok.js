@@ -722,7 +722,7 @@ class TikTokScraper extends events_1.EventEmitter {
                 fs.writeFileSync('q2.json', breakResponse);
                 const htmlState = JSON.parse(breakResponse);
                 const userInfo = htmlState.UserModule.users[this.input];
-                const userStats = htmlState.UserModule.stats;
+                const userStats = htmlState.UserModule.stats[this.input];
                 const userShareMeta = {
                     title: htmlState.SharingMeta.value['twitter:title'],
                     desc: htmlState.SharingMeta.value['twitter:description'],
