@@ -1,7 +1,10 @@
-import { WebHtmlStateObject, UserStats, UserShareMetadata } from './../types/TikTokApi';
+/* eslint-disable no-continue */
+/* eslint-disable consistent-return */
+/* eslint-disable no-param-reassign */
 /* eslint-disable no-console */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-underscore-dangle */
+import * as fs from 'fs';
 
 import rp, { OptionsWithUri } from 'request-promise';
 import { CookieJar } from 'request';
@@ -14,6 +17,7 @@ import { EventEmitter } from 'events';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { forEachLimit } from 'async';
 import { URLSearchParams } from 'url';
+import { WebHtmlStateObject, UserStats, UserShareMetadata } from '../types/TikTokApi';
 import CONST from '../constant';
 import { sign, makeid } from '../helpers';
 
@@ -398,7 +402,7 @@ export class TikTokScraper extends EventEmitter {
             try {
                 await fromCallback(cb => mkdir(this.folderDestination, { recursive: true }, cb));
             } catch (error) {
-                return this.returnInitError(error.message);
+                return this.returnInitError((error as Error).message);
             }
         }
 
@@ -628,7 +632,7 @@ export class TikTokScraper extends EventEmitter {
             this.maxCursor = parseInt(maxCursor === undefined ? cursor : maxCursor, 10);
             return false;
         } catch (error) {
-            throw error.message ? new Error(error.message) : error;
+            throw (error as Error).message ? new Error((error as Error).message) : error;
         }
     }
 
@@ -913,7 +917,7 @@ export class TikTokScraper extends EventEmitter {
         try {
             await this.request<string>(options);
         } catch (error) {
-            throw new Error(error.message);
+            throw new Error((error as Error).message);
         }
     }
 
@@ -932,12 +936,11 @@ export class TikTokScraper extends EventEmitter {
             },
             json: true,
         };
-
         try {
             const response = await this.request<T>(options);
             return response;
         } catch (error) {
-            throw new Error(error.message);
+            throw new Error((error as Error).message);
         }
     }
 
@@ -1011,7 +1014,7 @@ export class TikTokScraper extends EventEmitter {
                 verifyFp: this.verifyFp,
             };
         } catch (error) {
-            throw new Error(error.message);
+            throw new Error((error as Error).message);
         }
     }
 
@@ -1055,7 +1058,7 @@ export class TikTokScraper extends EventEmitter {
                 is_fullscreen: false,
             };
         } catch (error) {
-            throw new Error(error.message);
+            throw new Error((error as Error).message);
         }
     }
 
@@ -1074,8 +1077,9 @@ export class TikTokScraper extends EventEmitter {
         };
         try {
             const response = await this.request<string>(options);
-            const breakResponse = response.split(/<script id="sigi-persisted-data">window['SIGI_STATE'] = /)[1].split(`; window['SIGI_RETRY']`)[0];
+            const breakResponse = response.split(`<script id="sigi-persisted-data">window['SIGI_STATE']=`)[1].split(`;window['SIGI_RETRY']`)[0];
             if (breakResponse) {
+                fs.writeFileSync('q2.json', breakResponse);
                 const htmlState: WebHtmlStateObject = JSON.parse(breakResponse);
                 const userInfo: UserProfileInfo = htmlState.UserModule.users[this.input];
                 const userStats: UserStats = htmlState.UserModule.stats;
@@ -1091,7 +1095,8 @@ export class TikTokScraper extends EventEmitter {
                 };
             }
         } catch (err) {
-            if (err.statusCode === 404) {
+            console.log(err);
+            if ((err as any).statusCode === 404) {
                 throw new Error('User does not exist');
             }
         }
@@ -1125,7 +1130,7 @@ export class TikTokScraper extends EventEmitter {
             }
             return response.challengeInfo;
         } catch (error) {
-            throw new Error(error.message);
+            throw new Error((error as Error).message);
         }
     }
 
@@ -1179,7 +1184,7 @@ export class TikTokScraper extends EventEmitter {
             }
             return response.musicInfo;
         } catch (error) {
-            throw new Error(error.message);
+            throw new Error((error as Error).message);
         }
     }
 
@@ -1258,7 +1263,7 @@ export class TikTokScraper extends EventEmitter {
                     return response.itemInfo.itemStruct;
                 }
             } catch (err) {
-                if (err.statusCode === 404) {
+                if ((err as any).statusCode === 404) {
                     throw new Error('Video does not exist');
                 }
             }

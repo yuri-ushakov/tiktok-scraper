@@ -316,7 +316,7 @@ export interface MusicMetadata {
     };
 }
 
-export interface UserStats{
+export interface UserStats {
     followingCount: number;
     followerCount: number;
     heartCount: number;
@@ -325,7 +325,7 @@ export interface UserStats{
     heart: number;
 }
 
-export interface UserProfileInfo{
+export interface UserProfileInfo {
     id: string;
     uniqueId: string;
     nickname: string;
@@ -345,7 +345,7 @@ export interface UserProfileInfo{
     privateAccount: boolean;
 }
 
-export interface UserShareMetadata{
+export interface UserShareMetadata {
     title: string;
     desc: string;
 }
@@ -383,13 +383,13 @@ export interface WebHtmlUserMetadata {
 export interface WebHtmlStateObject {
     SharingMeta: {
         value: {
-            [key: string]: string
-        }
-    }
+            [key: string]: string;
+        };
+    };
     UserModule: {
         users: {
-            [key: string]: UserProfileInfo
-        },
-        stats: UserStats
-    },
+            [key: string]: UserProfileInfo;
+        };
+        stats: UserStats;
+    };
 }

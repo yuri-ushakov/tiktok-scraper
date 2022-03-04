@@ -16,6 +16,6 @@
         "baseUrl": "src",
         "strict": true
     },
-    "include": ["src/**/*.*"],
+    "include": ["src/**/*.ts", "tests/**/*.ts"],
     "exclude": ["node_modules", "src/**/*.test.ts", "**/__mocks__/*", "**/__mockData__/"]
 }
