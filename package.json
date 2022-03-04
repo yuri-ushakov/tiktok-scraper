@@ -76,7 +76,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/drawrowfly/tiktok-scraper.git"
+        "url": "git+https://github.com/yuri-ushakov/tiktok-scraper.git"
     },
     "keywords": [
         "TikTok",
@@ -87,5 +87,5 @@
     "bugs": {
         "url": "https://github.com/drawrowfly/tiktok-scraper/issues"
     },
-    "homepage": "https://github.com/drawrowfly/tiktok-scraper#readme"
+    "homepage": "https://github.com/yuri-ushakov/tiktok-scraper/#readme"
 }
