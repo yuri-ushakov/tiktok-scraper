@@ -1095,7 +1095,6 @@ export class TikTokScraper extends EventEmitter {
                 };
             }
         } catch (err) {
-            console.log(err);
             if ((err as any).statusCode === 404) {
                 throw new Error('User does not exist');
             }
