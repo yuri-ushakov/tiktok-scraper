@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.options = {
     number: 50,
     since: 0,
-    sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475'],
-    proxy: '45.40.104.19:1490',
+    sessionList: ['sid_tt=e3000ff627918908f2025acd0844e1b4'],
+    proxy: '38.145.80.3:1490',
     by_user_id: false,
     asyncDownload: 5,
     asyncScraping: 3,

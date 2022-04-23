@@ -24,6 +24,7 @@ const url_1 = require("url");
 const constant_1 = __importDefault(require("../constant"));
 const helpers_1 = require("../helpers");
 const core_1 = require("../core");
+const functions_1 = require("./functions");
 class TikTokScraper extends events_1.EventEmitter {
     constructor({ download, filepath, filetype, proxy, strictSSL = true, asyncDownload, cli = false, event = false, progress = false, input, number, since, type, by_user_id = false, store_history = false, historyPath = '', noWaterMark = false, useTestEndpoints = false, fileName = '', timeout = 0, bulk = false, zip = false, test = false, hdVideo = false, webHookUrl = '', method = 'POST', headers, verifyFp = '', sessionList = [], }) {
         super();
@@ -717,24 +718,22 @@ class TikTokScraper extends events_1.EventEmitter {
         };
         try {
             const response = await this.request(options);
-            const breakResponse = response.split(`<script id="sigi-persisted-data">window['SIGI_STATE']=`)[1].split(`;window['SIGI_RETRY']`)[0];
-            if (breakResponse) {
-                fs.writeFileSync('q2.json', breakResponse);
-                const htmlState = JSON.parse(breakResponse);
-                const userInfo = htmlState.UserModule.users[this.input];
-                const userStats = htmlState.UserModule.stats[this.input];
-                const userShareMeta = {
-                    title: htmlState.SharingMeta.value['twitter:title'],
-                    desc: htmlState.SharingMeta.value['twitter:description'],
-                };
-                return {
-                    user: userInfo,
-                    stats: userStats,
-                    shareMeta: userShareMeta,
-                };
-            }
+            fs.writeFileSync('response.html', response);
+            const htmlState = functions_1.parseUserInfo(response);
+            const userInfo = htmlState.UserModule.users[this.input];
+            const userStats = htmlState.UserModule.stats[this.input];
+            const userShareMeta = {
+                title: htmlState.SharingMeta.value['twitter:title'],
+                desc: htmlState.SharingMeta.value['twitter:description'],
+            };
+            return {
+                user: userInfo,
+                stats: userStats,
+                shareMeta: userShareMeta,
+            };
         }
         catch (err) {
+            console.log(err);
             if (err.statusCode === 404) {
                 throw new Error('User does not exist');
             }

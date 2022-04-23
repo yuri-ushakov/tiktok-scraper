@@ -8,13 +8,13 @@ export const options = {
     // Set session: {string[] default: ['']}
     // Authenticated session cookie value is required to scrape user/trending/music/hashtag feed
     // You can put here any number of sessions, each request will select random session from the list
-    sessionList: ['sid_tt=58ba9e34431774703d3c34e60d584475'],
+    sessionList: ['sid_tt=e3000ff627918908f2025acd0844e1b4'],
 
     // Set proxy {string[] | string default: ''}
     // http proxy: 127.0.0.1:8080
     // socks proxy: socks5://127.0.0.1:8080
     // You can pass proxies as an array and scraper will randomly select a proxy from the array to execute the requests
-    proxy: '45.40.104.19:1490',
+    proxy: '38.145.80.3:1490',
 
     // Set to {true} to search by user id: {boolean default: false}
     by_user_id: false,

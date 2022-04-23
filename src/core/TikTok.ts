@@ -41,6 +41,7 @@ import {
 } from '../types';
 
 import { Downloader } from '../core';
+import { parseUserInfo } from './functions';
 
 export class TikTokScraper extends EventEmitter {
     private mainHost: string;
@@ -1077,24 +1078,22 @@ export class TikTokScraper extends EventEmitter {
         };
         try {
             const response = await this.request<string>(options);
-            const breakResponse = response.split(`<script id="sigi-persisted-data">window['SIGI_STATE']=`)[1].split(`;window['SIGI_RETRY']`)[0];
-            if (breakResponse) {
-                fs.writeFileSync('q2.json', breakResponse);
-                const htmlState: WebHtmlStateObject = JSON.parse(breakResponse);
-                const userInfo: UserProfileInfo = htmlState.UserModule.users[this.input];
-                const userStats: UserStats = htmlState.UserModule.stats[this.input];
-                const userShareMeta: UserShareMetadata = {
-                    title: htmlState.SharingMeta.value['twitter:title'],
-                    desc: htmlState.SharingMeta.value['twitter:description'],
-                };
+            fs.writeFileSync('response.html', response);
+            const htmlState: WebHtmlStateObject = parseUserInfo(response);
+            const userInfo: UserProfileInfo = htmlState.UserModule.users[this.input];
+            const userStats: UserStats = htmlState.UserModule.stats[this.input];
+            const userShareMeta: UserShareMetadata = {
+                title: htmlState.SharingMeta.value['twitter:title'],
+                desc: htmlState.SharingMeta.value['twitter:description'],
+            };
 
-                return {
-                    user: userInfo,
-                    stats: userStats,
-                    shareMeta: userShareMeta,
-                };
-            }
+            return {
+                user: userInfo,
+                stats: userStats,
+                shareMeta: userShareMeta,
+            };
         } catch (err) {
+            console.log(err);
             if ((err as any).statusCode === 404) {
                 throw new Error('User does not exist');
             }
