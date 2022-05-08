@@ -9,7 +9,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const TikTokScraper = __importStar(require("../src/index"));
 const options_1 = require("./options");
-const TARGET_USER = 'kalanilyndon1';
+const TARGET_USER = 'Alsxalachuoe3';
 (async () => {
     try {
         const user = await TikTokScraper.getUserProfileInfo(TARGET_USER, options_1.options);

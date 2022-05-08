@@ -14,7 +14,7 @@ export const options = {
     // http proxy: 127.0.0.1:8080
     // socks proxy: socks5://127.0.0.1:8080
     // You can pass proxies as an array and scraper will randomly select a proxy from the array to execute the requests
-    proxy: '38.145.80.3:1490',
+    proxy: '38.145.86.2:1490',
 
     // Set to {true} to search by user id: {boolean default: false}
     by_user_id: false,

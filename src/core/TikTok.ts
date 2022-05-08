@@ -1080,8 +1080,9 @@ export class TikTokScraper extends EventEmitter {
             const response = await this.request<string>(options);
             fs.writeFileSync('response.html', response);
             const htmlState: WebHtmlStateObject = parseUserInfo(response);
-            const userInfo: UserProfileInfo = htmlState.UserModule.users[this.input];
-            const userStats: UserStats = htmlState.UserModule.stats[this.input];
+            fs.writeFileSync('htmlState.json', JSON.stringify(htmlState));
+            const userInfo: UserProfileInfo = htmlState.UserModule.users[this.input.toLowerCase()];
+            const userStats: UserStats = htmlState.UserModule.stats[this.input.toLowerCase()];
             const userShareMeta: UserShareMetadata = {
                 title: htmlState.SharingMeta.value['twitter:title'],
                 desc: htmlState.SharingMeta.value['twitter:description'],

@@ -4,7 +4,7 @@ exports.options = {
     number: 50,
     since: 0,
     sessionList: ['sid_tt=e3000ff627918908f2025acd0844e1b4'],
-    proxy: '38.145.80.3:1490',
+    proxy: '38.145.86.2:1490',
     by_user_id: false,
     asyncDownload: 5,
     asyncScraping: 3,
