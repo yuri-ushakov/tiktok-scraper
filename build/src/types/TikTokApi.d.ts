@@ -372,3 +372,13 @@ export interface WebHtmlStateObject {
         };
     };
 }
+export interface IAppProps {
+    props: {
+        pageProps: {
+            userInfo: {
+                user: UserProfileInfo;
+                stats: UserStats;
+            };
+        };
+    };
+}

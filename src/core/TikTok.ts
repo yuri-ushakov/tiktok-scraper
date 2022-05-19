@@ -17,7 +17,7 @@ import { EventEmitter } from 'events';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { forEachLimit } from 'async';
 import { URLSearchParams } from 'url';
-import { WebHtmlStateObject, UserStats, UserShareMetadata } from '../types/TikTokApi';
+import { UserStats, UserShareMetadata, IAppProps } from '../types/TikTokApi';
 import CONST from '../constant';
 import { sign, makeid } from '../helpers';
 
@@ -41,7 +41,7 @@ import {
 } from '../types';
 
 import { Downloader } from '../core';
-import { parseUserInfo } from './functions';
+import { parseUserInfoNew } from './functions';
 
 export class TikTokScraper extends EventEmitter {
     private mainHost: string;
@@ -1079,13 +1079,15 @@ export class TikTokScraper extends EventEmitter {
         try {
             const response = await this.request<string>(options);
             fs.writeFileSync('response.html', response);
-            const htmlState: WebHtmlStateObject = parseUserInfo(response);
-            fs.writeFileSync('htmlState.json', JSON.stringify(htmlState));
-            const userInfo: UserProfileInfo = htmlState.UserModule.users[this.input.toLowerCase()];
-            const userStats: UserStats = htmlState.UserModule.stats[this.input.toLowerCase()];
+            const appProps: IAppProps = parseUserInfoNew(response);
+            fs.writeFileSync('appprops.json', JSON.stringify(appProps));
+            const userInfo: UserProfileInfo = appProps.props.pageProps.userInfo.user;
+            const userStats: UserStats = appProps.props.pageProps.userInfo.stats;
             const userShareMeta: UserShareMetadata = {
-                title: htmlState.SharingMeta.value['twitter:title'],
-                desc: htmlState.SharingMeta.value['twitter:description'],
+                title: '',
+                desc: '',
+                // title: htmlState.SharingMeta.value['twitter:title'],
+                // desc: htmlState.SharingMeta.value['twitter:description'],
             };
 
             return {

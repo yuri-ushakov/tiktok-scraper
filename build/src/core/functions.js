@@ -4,6 +4,7 @@ const TEMPLATES = [
     [`<script id="SIGI_STATE" type="application/json">`, `</script><script id="SIGI_RETRY"`],
     [`<script id="sigi-persisted-data">window['SIGI_STATE']=`, `;window['SIGI_RETRY']`],
 ];
+const TEMPLATE_NEW = [`{"props":`, `</script>`];
 function parseUserInfo(htmlResponse) {
     for (const template of TEMPLATES) {
         const found1 = htmlResponse.includes(template[0]);
@@ -15,3 +16,17 @@ function parseUserInfo(htmlResponse) {
     throw new Error(`Error parsing tiktok html-page with WebHtmlStateObject.`);
 }
 exports.parseUserInfo = parseUserInfo;
+function parseUserInfoNew(htmlResponse) {
+    const firstIdx = htmlResponse.indexOf(TEMPLATE_NEW[0]);
+    if (firstIdx === null) {
+        throw new Error(`Error parsing tiktok html-page with IAppProps`);
+    }
+    const firstPart = htmlResponse.substring(firstIdx);
+    const secondIdx = htmlResponse.indexOf(TEMPLATE_NEW[1]);
+    if (secondIdx === null) {
+        throw new Error(`Error parsing tiktok html-page with IAppProps`);
+    }
+    const arr = firstPart.split(TEMPLATE_NEW[1]);
+    return JSON.parse(arr[0]);
+}
+exports.parseUserInfoNew = parseUserInfoNew;

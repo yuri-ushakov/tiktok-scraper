@@ -1,7 +1,7 @@
 import * as TikTokScraper from '../src/index';
 import { options } from './options';
 
-const TARGET_USER = 'Alsxalachuoe3';
+const TARGET_USER = 'milanispeight02364';
 
 (async () => {
     try {
