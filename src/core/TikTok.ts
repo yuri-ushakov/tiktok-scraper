@@ -4,7 +4,6 @@
 /* eslint-disable no-console */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-underscore-dangle */
-import * as fs from 'fs';
 
 import rp, { OptionsWithUri } from 'request-promise';
 import { CookieJar } from 'request';
@@ -17,7 +16,6 @@ import { EventEmitter } from 'events';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { forEachLimit } from 'async';
 import { URLSearchParams } from 'url';
-import { UserStats, UserShareMetadata, IAppProps } from '../types/TikTokApi';
 import CONST from '../constant';
 import { sign, makeid } from '../helpers';
 
@@ -37,11 +35,10 @@ import {
     HashtagMetadata,
     Headers,
     VideoMetadata,
-    UserProfileInfo,
 } from '../types';
 
 import { Downloader } from '../core';
-import { parseUserInfoNew } from './functions';
+import { parseUserMetaData } from './functions';
 
 export class TikTokScraper extends EventEmitter {
     private mainHost: string;
@@ -1078,7 +1075,8 @@ export class TikTokScraper extends EventEmitter {
         };
         try {
             const response = await this.request<string>(options);
-            fs.writeFileSync('response.html', response);
+            return parseUserMetaData(this.input, response);
+            /* fs.writeFileSync('response.html', response);
             const appProps: IAppProps = parseUserInfoNew(response);
             fs.writeFileSync('appprops.json', JSON.stringify(appProps));
             const userInfo: UserProfileInfo = appProps.props.pageProps.userInfo.user;
@@ -1094,7 +1092,7 @@ export class TikTokScraper extends EventEmitter {
                 user: userInfo,
                 stats: userStats,
                 shareMeta: userShareMeta,
-            };
+            }; */
         } catch (err) {
             console.log(err);
             if ((err as any).statusCode === 404) {
